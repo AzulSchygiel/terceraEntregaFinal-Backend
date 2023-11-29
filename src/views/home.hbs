@@ -1,0 +1,11 @@
+<h1>PRODUCTOS</h1>
+
+{{#each payload}}
+<div>Juego: {{this.title}}, precio: {{this.price}} 
+    <button onclick="addToCarrito(`{{this._id}}`)">AGREGAR AL CARRITO</button>
+</div>
+{{/each}}
+    <a href="{{prevLink}}">ANTERIOR</a>
+    <a href="{{nextLink}}">SIGUIENTE</a>
+
+<script src="./home.js"></script>
