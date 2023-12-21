@@ -1,84 +1,89 @@
 import express from "express";
-import session from "express-session";
-import MongoStore from "connect-mongo";
-import { engine } from "express-handlebars";
-import { __dirname } from "./utils.js";
-import path, { extname } from "path";
-import { connectDB } from "./config/connectionDB.js";
-import passport from "passport";
-import { initPassport } from "./config/passport.config.js";
-import { generateToken } from "./utils.js";
-import { config } from "./config/config.js";
+import session from "express-session"; //Gestionar sesiones de usuarios
+import MongoStore from "connect-mongo"; // Guardar las sesiones, actualizarlas y eliminarlas de la BD
+import cookieParser from "cookie-parser";
 
+import passport from "passport";
+import { config } from "./config/config.js";
+import { initializePassport } from "./config/passport.config.js";
+
+import { __dirname } from "./utils.js"
+import path from "path";
+
+import { Server } from "socket.io";
+import { engine } from "express-handlebars";
+import { connectDB } from "./config/dbConnection.js";
+
+import { productsRouter } from "./routes/products.routes.js";
+import { cartsRouter } from "./routes/carts.routes.js";
 import { viewsRouter } from "./routes/views.routes.js";
 import { sessionsRouter } from "./routes/sessions.routes.js";
-import { productsRouter } from "./routes/productos.routes.js";
-import { cartsRouter } from "./routes/carrito.routes.js"
-import { Server } from "http";
+import { usersRouter } from "./routes/users.routes.js";
 
-//~~~~~~~~~~~~INSTALACIÓN~~~~~~~~~~~~~~//
-// npm init -y
-// npm i express
-// npm i express-session connect-mongo express-handlebars mongoose
-// npm i jsonwebtoken
-// npm i bcrypt
-// npm i passport passport-local
-// npm i dotenv
-// npm i passport-github2
+// Manejo de Errores + en las rutas
+import { errorHandler } from "./middleware/errorHandler.js"
+
+import { logger } from "./helpers/logger.js";
 
 const port = 8080;
 const app = express();
 
-//~~~~~~~~~~~~~MIDDLEWARES~~~~~~~~~~~~~~~//
-app.use(express.static(path.join(__dirname, "/public")));
+// MiddleWre
+app.use(express.static(path.join(__dirname,"/public")));
+    // Para JSON
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+    // Para Forms
+app.use(express.urlencoded({extended:true}));
+    // Bootstrap
+app.use(express.static('node_modules/bootstrap/dist'));
+app.use('/css', express.static('node_modules/bootstrap/dist/css'));
+app.use('/js', express.static('node_modules/bootstrap/dist/js'));
+    // Uso de Cookies
+app.use(cookieParser("claveSecreta"));
 
-const httpServer = app.listen(port, () => console.log(`Server Funcionando en puerto ${port}`));
-
-const io = new Server(httpServer);
-
-connectDB();
-
-//~~~~~~~~~~~~~HANDLEBARS~~~~~~~~~~~~~~~//
-app.engine('.hbs', engine({extname: '.hbs'}));
-app.set('view engine', '.hbs');
-app.set('views', path.join(__dirname, "/views"));
-
-
-//~~~~~~~~~~~~~TOKEN~~~~~~~~~~~~~~~//
-app.get("/login", (req, res) => {
-    const user = req.body; //Se pasa el usuario de la Base de Datos
-    const token = generateToken(user); //Genera el Token
-    res.json({ status: "success", accessToken: token }); //Se responde al usuario
+const httpServer = app.listen(port, () => {
+    logger.informativo(`Servidor ejecutandose en el puerto ${port}`);
 });
 
-//~~~~~~~~MOTOR DE PLANTILLAS~~~~~~~~~~//
-app.engine(".hbs", engine({ extname: ".hbs" }));
-app.set("view engine", ".hbs");
-app.set("views", path.join(__dirname, "/views"));
+// Servidor de WebSocket
+const io = new Server(httpServer);
 
-//~~~~~~~~~~~~~SESSIONS~~~~~~~~~~~~~~~//
-app.use(
-    session({
-        store: MongoStore.create({
-            ttl: 4000,
-            mongoUrl: config.mongo.url,
-        }),
-        secret: config.server.secretSession,
-        resave: true,
-        saveUninitialized: true,
-    })
-);
+// Conexión a la DB
+connectDB();
 
-//~~~~~~~~PASSPORT~~~~~~~~~~//
+// Configuración de HandleBars
+app.engine('.hbs', engine({
+        extname: '.hbs',
+        // Para que HandleBars tome información del 3eros
+        runtimeOptions: {
+            allowProtoMethodsByDefault: true,
+            allowProtoPropertiesByDefault: true
+        }
+}));
+app.set('view engine', '.hbs');
+app.set('views', path.join(__dirname,"/views"));
+
+// Configuración de session
+app.use(session({
+    store: MongoStore.create({
+        ttl:3000,
+        mongoUrl: config.mongo.url
+    }),
+    secret: config.server.secretSession,
+    resave:true,
+    saveUninitialized:true
+}));
+
+// Configurar Passport para utilizar la estrategia
 initializePassport();
 app.use(passport.initialize());
 app.use(passport.session());
 
-//~~~~~~~~~~~~~~~RUTAS~~~~~~~~~~~~~~~~//
+// Rutas
 app.use(viewsRouter);
+app.use("/api/products",productsRouter);
+app.use("/api/carts", cartsRouter);
 app.use("/api/sessions", sessionsRouter);
-app.use("/api/carrito", cartsRouter);
-app.use("/api/videojuegos", productsRouter); //cambiar
+app.use("/api/users/", usersRouter);
+app.use(errorHandler)
 
