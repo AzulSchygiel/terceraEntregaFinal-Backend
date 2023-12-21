@@ -5,8 +5,8 @@ import { logger } from "../helpers/logger.js";
 export const connectDB = async() => {
     try {
         await mongoose.connect(config.mongo.url);
-        console.log('Base de datos conectada');
+        logger.informativo("Base de Datos Conectada");
     } catch (error) {
-        console.log(`ERROR en la conexión a la base de datos ${error.message}`);
+        logger.error(`Error al conectar la base de datos: ${error.message}`);
     }
-}
+};
