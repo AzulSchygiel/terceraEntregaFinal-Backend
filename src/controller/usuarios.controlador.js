@@ -1,14 +1,21 @@
-import { UsuariosService } from "../service/usuarios.servicio.js";
+import { UsersService } from "../service/users.service.js"
 
-export class UsuariosController{
-    static getUsuario = (req,res) => {
-        const result = UsuariosService.getUsuario();
-        res.json({status:"success", data:result});
-    };
-
-    static saveUsuario = (req,res) => {
-        const usuarioInfo = req.body;
-        const resut = UsuariosService.saveUsuario(usuarioInfo);
-        res.json({status:"success", data:result});
-    };
+export class UsersController{
+    static modifyRole = async (req, res) => {
+        try {
+            const userId = req.params.uid;
+            const user = await UsersService.getUserById(userId);
+            if(user.role === "premium"){
+                user.role = "user";
+            } else if (user.role === "user"){
+                user.role = "premium";
+            } else {
+                res.json({status:"error", message: "No se puede cambiar el rol del usuario"});
+            }
+            await UsersService.updateUser(user._id, user);
+            res.json({status:"error", message:"Rol de usuario modificado"});
+        } catch (error) {
+            res.json({status:"error", message: error.message});
+        }
+    }
 };
